@@ -14,12 +14,10 @@ export async function clubhouseStoryToGithubIssue(clubhouseStoryURL, githubRepoU
   const {owner, repo} = parseGithubRepoURL(githubRepoURL)
 
   const clubhouseUsers = await listUsers(options.clubhouseToken)
-  console.log("clubhouseUsers", clubhouseUsers)
   const clubhouseUsersById = clubhouseUsers.reduce((acc, user) => {
     acc[user.id] = user
     return acc
   })
-  console.log("clubhouseUsersById", clubhouseUsersById)
 
   const story = await getStory(options.clubhouseToken, storyId)
   const unsavedIssue = _storyToIssue(clubhouseStoryURL, story)
@@ -34,9 +32,13 @@ export async function githubIssueToClubhouseStory(githubIssueURL, clubhouseProje
   _assertOption('githubToken', options)
   _assertOption('clubhouseToken', options)
 
-  const users = await listUsers(options.clubhouseToken)
-  const {id: authorId} = users[0]
-  //const {id: authorId} = '5b19fe26-252e-4d4c-999d-f65c5f131830'
+  const clubhouseUsers = await listUsers(options.clubhouseToken)
+  //console.log("clubhouseUsers", clubhouseUsers)
+  const clubhouseUsersByName = clubhouseUsers.reduce((acc, user) => {
+    acc[user.username] = user
+    return acc
+  }, {} )
+  console.log("clubhouseUsersByName", clubhouseUsersByName)
 
   const projects = await listProjects(options.clubhouseToken)
   const project = projects.find(project => project.name === clubhouseProject)
@@ -50,10 +52,9 @@ export async function githubIssueToClubhouseStory(githubIssueURL, clubhouseProje
   const {owner, repo, issueNumber} = parseGithubIssueURL(githubIssueURL)
   const issue = await getIssue(options.githubToken, owner, repo, issueNumber)
   const issueComments = await getCommentsForIssue(options.githubToken, owner, repo, issueNumber)
-  console.log("authorId", authorId)
   console.log("comments", issueComments)
-
-  const unsavedStory = _issueToStory(authorId, projectId, issue, issueComments)
+  console.log("issue", issue)
+  const unsavedStory = _issueToStory(clubhouseUsersByName, projectId, issue, issueComments)
   console.log("story", unsavedStory)
   const story = createStory(options.clubhouseToken, unsavedStory)
 
@@ -66,25 +67,52 @@ function _assertOption(name, options) {
   }
 }
 
+
+const userMappings = {
+  "melor": "melohmu", "harmti": "timoharm"}
+
+
+function _mapUser(clubhouseUsersByName, githubUsername) {
+
+  //console.log("githubUsername", githubUsername)
+
+  var username
+  if (userMappings[githubUsername]) {
+    username = userMappings[githubUsername]
+  }
+  else {
+    username = githubUsername
+  }
+
+  //console.log("username", username)
+  if (clubhouseUsersByName[username]) {
+    return clubhouseUsersByName[username].id
+  }
+  else {
+    // default username if not found...
+    console.log("Warning, user missing from clubhouse", username)
+    return Object.keys(clubhouseUsersByName)[0].id
+  }
+
 /* eslint-disable camelcase */
 
-function _issueToStory(authorId, projectId, issue, issueComments) {
+function _issueToStory(clubhouseUsersByName, projectId, issue, issueComments) {
   return {
     project_id: projectId,
     name: issue.title,
     description: issue.body,
-    comments: _presentGithubComments(authorId, issueComments),
+    comments: _presentGithubComments(clubhouseUsersByName, issueComments),
     created_at: issue.created_at,
     updated_at: issue.updated_at,
-    external_id: issue.url,
-    requested_by_id: authorId,
+    external_id: issue.html_url,
+    requested_by_id: _mapUser(clubhouseUsersByName, issue.user.login),
   }
 }
 
-function _presentGithubComments(authorId, issueComments) {
+function _presentGithubComments(clubhouseUsersByName, issueComments) {
   return issueComments.map(issueComment => ({
-    author_id: authorId,
-    text: `**[Comment from GitHub user @${issueComment.user.login}:]** ${issueComment.body}`,
+    author_id: _mapUser(clubhouseUsersByName, issueComment.user.login),
+    text: issueComment.body,
     created_at: issueComment.created_at,
     updated_at: issueComment.updated_at,
     external_id: issueComment.url,
