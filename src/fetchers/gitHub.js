@@ -21,6 +21,11 @@ export function getCommentsForIssue(token, owner, repoName, issueNumber) {
   return apiFetchAllPages(commentsUrl, {headers: headers(token)})
 }
 
+export function getLabelsForIssue(token, owner, repoName, issueNumber) {
+  const labelsUrl = apiURL(`/repos/${owner}/${repoName}/issues/${issueNumber}/labels`)
+  return apiFetchAllPages(labelsUrl, {headers: headers(token)})
+}
+
 export function createIssue(token, owner, repoName, issue) {
   const newIssueUrl = apiURL(`/repos/${owner}/${repoName}/issues`)
   return apiFetch(newIssueUrl, {

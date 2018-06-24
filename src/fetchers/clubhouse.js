@@ -23,7 +23,17 @@ export function listProjects(token) {
   return apiFetch(projectsUrl, {headers})
 }
 
+export function listLabels(token) {
+  const projectsUrl = apiURL('/labels', token)
+  return apiFetch(projectsUrl, {headers})
+}
+
 export function createStory(token, story) {
   const storyUrl = apiURL('/stories', token)
   return apiFetch(storyUrl, {method: 'POST', headers, body: JSON.stringify(story)})
+}
+
+export function createLabel(token, label) {
+  const labelUrl = apiURL('/labels', token)
+  return apiFetch(labelUrl, {method: 'POST', headers, body: JSON.stringify(label)})
 }

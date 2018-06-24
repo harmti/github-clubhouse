@@ -1,7 +1,7 @@
 import Bluebird from 'bluebird'
 
-import {getIssue, getCommentsForIssue, createIssue, createIssueComment} from './fetchers/gitHub'
-import {getStory, listUsers, listProjects, createStory} from './fetchers/clubhouse'
+import {getIssue, getCommentsForIssue, getLabelsForIssue, createIssue, createIssueComment} from './fetchers/gitHub'
+import {getStory, listUsers, listLabels, listProjects, createStory, createLabel} from './fetchers/clubhouse'
 import {parseClubhouseStoryURL, parseGithubIssueURL, parseGithubRepoURL} from './util/urlParse'
 
 export {saveConfig, loadConfig} from './util/config'
@@ -40,6 +40,14 @@ export async function githubIssueToClubhouseStory(githubIssueURL, clubhouseProje
   }, {} )
   console.log("clubhouseUsersByName", clubhouseUsersByName)
 
+  const clubhouseLabels = await listLabels(options.clubhouseToken)
+  //console.log("clubhouseLabels", clubhouseLabels)
+  const clubhouseLabelsByName = clubhouseLabels.reduce((acc, label) => {
+    acc[label.name] = label
+    return acc
+  }, {} )
+  console.log("clubhouseLabelsByName", clubhouseLabelsByName)
+
   const projects = await listProjects(options.clubhouseToken)
   const project = projects.find(project => project.name === clubhouseProject)
 
@@ -52,9 +60,11 @@ export async function githubIssueToClubhouseStory(githubIssueURL, clubhouseProje
   const {owner, repo, issueNumber} = parseGithubIssueURL(githubIssueURL)
   const issue = await getIssue(options.githubToken, owner, repo, issueNumber)
   const issueComments = await getCommentsForIssue(options.githubToken, owner, repo, issueNumber)
+  const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issueNumber)
   console.log("comments", issueComments)
+  console.log("labels", issueLabels)
   console.log("issue", issue)
-  const unsavedStory = _issueToStory(clubhouseUsersByName, projectId, issue, issueComments)
+  const unsavedStory = _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, issue, issueComments, issueLabels)
   console.log("story", unsavedStory)
   const story = createStory(options.clubhouseToken, unsavedStory)
 
@@ -70,7 +80,6 @@ function _assertOption(name, options) {
 
 const userMappings = {
   "melor": "melohmu", "harmti": "timoharm"}
-
 
 function _mapUser(clubhouseUsersByName, githubUsername) {
 
@@ -93,15 +102,18 @@ function _mapUser(clubhouseUsersByName, githubUsername) {
     console.log("Warning, user missing from clubhouse", username)
     return Object.keys(clubhouseUsersByName)[0].id
   }
+}
 
 /* eslint-disable camelcase */
 
-function _issueToStory(clubhouseUsersByName, projectId, issue, issueComments) {
+function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, issue, issueComments, issueLabels) {
   return {
     project_id: projectId,
     name: issue.title,
     description: issue.body,
     comments: _presentGithubComments(clubhouseUsersByName, issueComments),
+    labels: _presentGithubLabels(clubhouseLabelsByName, issueLabels),
+    //labels:  [{name: 'ddsui', color: '#dbca06', external_id: 'bar' }],
     created_at: issue.created_at,
     updated_at: issue.updated_at,
     external_id: issue.html_url,
@@ -116,6 +128,29 @@ function _presentGithubComments(clubhouseUsersByName, issueComments) {
     created_at: issueComment.created_at,
     updated_at: issueComment.updated_at,
     external_id: issueComment.url,
+  }))
+}
+
+function _presentGithubLabels(clubhouseLabelsByName, issueLabels) {
+
+  // Create labels missing from clubhouse
+  //console.log("checking if new github labels needed for", issueLabels)
+  for (let issueLabel of issueLabels) {
+    if (!(issueLabel.name in clubhouseLabelsByName)) {
+      console.log("creating label", issueLabel.name, `#${issueLabel.color}`)
+      var label = createLabel({
+        name: issueLabel.name,
+        color: `#${issueLabel.color}`
+        //created_at: issueLabel.created_at,
+        //updated_at: issueLabel.updated_at,
+        //external_id: issueLabel.url,
+      })
+      clubhouseLabelsByName[label.name] = label
+    }
+  }
+
+  return issueLabels.map(issueLabel => ({
+    name: issueLabel.name,
   }))
 }
 
