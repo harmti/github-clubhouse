@@ -1,7 +1,7 @@
 import Bluebird from 'bluebird'
 
 import {getIssue, queryIssues, getCommentsForIssue, getLabelsForIssue, createIssue, createIssueComment} from './fetchers/gitHub'
-import {getStory, listUsers, listLabels, listProjects, createStory, createLabel} from './fetchers/clubhouse'
+import {getStory, listUsers, listLabels, listProjects, listWorkflows, createStory, createLabel} from './fetchers/clubhouse'
 import {parseClubhouseStoryURL, parseGithubIssueURL, parseGithubRepoURL} from './util/urlParse'
 
 export {saveConfig, loadConfig} from './util/config'
@@ -50,6 +50,13 @@ export async function githubIssueToClubhouseStory(options) {
   }, {} )
   console.log("clubhouseLabelsByName", clubhouseLabelsByName)
 
+  // simply use the first 'unstarted' and 'done' states of the first workflow
+  const clubhouseWorkflows = await listWorkflows(options.clubhouseToken)
+  //console.log("clubhouseWorkflows", clubhouseWorkflows)
+  const stateId = {open: clubhouseWorkflows[0].states.find(state => state.type === 'unstarted').id,
+                   done: clubhouseWorkflows[0].states.find(state => state.type === 'done').id }
+  console.log("stateId", stateId)
+
   const projects = await listProjects(options.clubhouseToken)
   const project = projects.find(project => project.name === options['clubhouseProject'])
 
@@ -78,15 +85,15 @@ export async function githubIssueToClubhouseStory(options) {
     const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issue.number)
     console.log("comments", issueComments)
     console.log("labels", issueLabels)
-    const unsavedStory = _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, issue, issueComments, issueLabels)
+    const unsavedStory = _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, stateId, issue, issueComments, issueLabels)
     console.log("story", unsavedStory)
 
-    if (!options.dry_run) {
-      console.log("will call createStory")
+    if (!options.dryRun) {
       const story = await createStory(options.clubhouseToken, unsavedStory)
       console.info("Created story", story.id)
       count=count+1
-    }
+    } else
+      console.info("Skipped creating story in clubhouse")
   }
 
   return count
@@ -130,8 +137,9 @@ function _mapUser(clubhouseUsersByName, githubUsername) {
 
 /* eslint-disable camelcase */
 
-function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, issue, issueComments, issueLabels) {
-  return {
+function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, stateId, issue, issueComments, issueLabels) {
+
+  var story = {
     project_id: projectId,
     name: issue.title,
     description: issue.body,
@@ -143,6 +151,13 @@ function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, i
     external_id: issue.html_url,
     requested_by_id: _mapUser(clubhouseUsersByName, issue.user.login),
   }
+
+  if (issue.state === 'closed') {
+    story.workflow_state_id = stateId.done
+    story.completed_at_override = issue.closed_at
+  }
+
+  return story
 }
 
 function _presentGithubComments(clubhouseUsersByName, issueComments) {

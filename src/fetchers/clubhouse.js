@@ -28,6 +28,11 @@ export function listLabels(token) {
   return apiFetch(projectsUrl, {headers: clubhouseHeaders})
 }
 
+export function listWorkflows(token) {
+  const projectsUrl = apiURL('/workflows', token)
+  return apiFetch(projectsUrl, {headers: clubhouseHeaders})
+}
+
 export function createStory(token, story) {
   const storyUrl = apiURL('/stories', token)
   return apiFetch(storyUrl, {method: 'POST', headers: clubhouseHeaders, body: JSON.stringify(story)})
