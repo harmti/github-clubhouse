@@ -1,6 +1,6 @@
 import Bluebird from 'bluebird'
 
-import {getIssue, getCommentsForIssue, getLabelsForIssue, createIssue, createIssueComment} from './fetchers/gitHub'
+import {getIssue, queryIssues, getCommentsForIssue, getLabelsForIssue, createIssue, createIssueComment} from './fetchers/gitHub'
 import {getStory, listUsers, listLabels, listProjects, createStory, createLabel} from './fetchers/clubhouse'
 import {parseClubhouseStoryURL, parseGithubIssueURL, parseGithubRepoURL} from './util/urlParse'
 
@@ -28,14 +28,16 @@ export async function clubhouseStoryToGithubIssue(clubhouseStoryURL, githubRepoU
   return issue
 }
 
-export async function githubIssueToClubhouseStory(githubIssueURL, clubhouseProject, options = {}) {
+export async function githubIssueToClubhouseStory(options) {
   _assertOption('githubToken', options)
   _assertOption('clubhouseToken', options)
+  _assertOption('clubhouseProject', options)
+  _assertOption('githubProject', options)
 
   const clubhouseUsers = await listUsers(options.clubhouseToken)
   //console.log("clubhouseUsers", clubhouseUsers)
   const clubhouseUsersByName = clubhouseUsers.reduce((acc, user) => {
-    acc[user.username] = user
+    acc[user.profile.mention_name] = user
     return acc
   }, {} )
   console.log("clubhouseUsersByName", clubhouseUsersByName)
@@ -49,26 +51,45 @@ export async function githubIssueToClubhouseStory(githubIssueURL, clubhouseProje
   console.log("clubhouseLabelsByName", clubhouseLabelsByName)
 
   const projects = await listProjects(options.clubhouseToken)
-  const project = projects.find(project => project.name === clubhouseProject)
+  const project = projects.find(project => project.name === options['clubhouseProject'])
 
   if (!project) {
-    throw new Error(`The '${clubhouseProject}' project wasn't found in your Clubhouse`)
+    throw new Error(`The '${options['clubhouseProject']}' project wasn't found in your Clubhouse`)
   }
 
   const {id: projectId} = project
 
-  const {owner, repo, issueNumber} = parseGithubIssueURL(githubIssueURL)
-  const issue = await getIssue(options.githubToken, owner, repo, issueNumber)
-  const issueComments = await getCommentsForIssue(options.githubToken, owner, repo, issueNumber)
-  const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issueNumber)
-  console.log("comments", issueComments)
-  console.log("labels", issueLabels)
-  console.log("issue", issue)
-  const unsavedStory = _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, issue, issueComments, issueLabels)
-  console.log("story", unsavedStory)
-  const story = createStory(options.clubhouseToken, unsavedStory)
+  console.log("SPLIT", options.githubProject.split("/"))
+  const [owner, repo] = options.githubProject.split("/")
 
-  return story
+  var issues = {}
+  if ('issue' in options) {
+    issues = [await getIssue(options.githubToken, owner, repo, options.issue)]
+  } else {
+    issues = await queryIssues(options.githubToken, owner, repo, options.query)
+    issues = issues.items
+  }
+  console.log("issues:", issues)
+
+  var count=0
+  for (const issue of issues) {
+    console.log("issue", issue)
+    const issueComments = await getCommentsForIssue(options.githubToken, owner, repo, issue.number)
+    const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issue.number)
+    console.log("comments", issueComments)
+    console.log("labels", issueLabels)
+    const unsavedStory = _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, issue, issueComments, issueLabels)
+    console.log("story", unsavedStory)
+
+    if (!options.dry_run) {
+      console.log("will call createStory")
+      const story = await createStory(options.clubhouseToken, unsavedStory)
+      console.info("Created story", story.id)
+      count=count+1
+    }
+  }
+
+  return count
 }
 
 function _assertOption(name, options) {
@@ -78,8 +99,10 @@ function _assertOption(name, options) {
 }
 
 
-const userMappings = {
-  "melor": "melohmu", "harmti": "timoharm"}
+//const userMappings = {
+//  "melor": "melohmu", "harmti": "timoharm"}
+
+const userMappings = {}
 
 function _mapUser(clubhouseUsersByName, githubUsername) {
 
@@ -93,14 +116,15 @@ function _mapUser(clubhouseUsersByName, githubUsername) {
     username = githubUsername
   }
 
-  //console.log("username", username)
+  console.log("username", username)
   if (clubhouseUsersByName[username]) {
     return clubhouseUsersByName[username].id
   }
   else {
     // default username if not found...
-    console.log("Warning, user missing from clubhouse", username)
-    return Object.keys(clubhouseUsersByName)[0].id
+    console.log("Warning, user missing from clubhouse:", username)
+    console.log("Object.keys(clubhouseUsersByName)", Object.keys(clubhouseUsersByName))
+    return clubhouseUsersByName[Object.keys(clubhouseUsersByName)[0]].id
   }
 }
 

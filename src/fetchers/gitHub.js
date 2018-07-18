@@ -4,15 +4,21 @@ function headers(token) {
   return {
     Authorization: `token ${token}`,
     Accept: 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json',
   }
 }
 
-function apiURL(path) {
-  return `https://api.github.com${path}`
+function apiURL(path, params = {}) {
+  return {base: 'https://api.github.com', path: path, queryParams: params}
 }
 
 export function getIssue(token, owner, repoName, issueNumber) {
   const issueUrl = apiURL(`/repos/${owner}/${repoName}/issues/${issueNumber}`)
+  return apiFetch(issueUrl, {headers: headers(token)})
+}
+
+export function queryIssues(token, owner, repoName, issueQuery) {
+  const issueUrl = apiURL(`/search/issues`, {q: issueQuery + ` repo:${owner}/${repoName}`})
   return apiFetch(issueUrl, {headers: headers(token)})
 }
 
