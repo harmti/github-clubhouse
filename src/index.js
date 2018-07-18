@@ -152,6 +152,10 @@ function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, s
     requested_by_id: _mapUser(clubhouseUsersByName, issue.user.login),
   }
 
+  if (issue.assignee != null) {
+    story.owner_ids = [_mapUser(clubhouseUsersByName, issue.assignee.login)]
+  }
+
   if (issue.state === 'closed') {
     story.workflow_state_id = stateId.done
     story.completed_at_override = issue.closed_at
