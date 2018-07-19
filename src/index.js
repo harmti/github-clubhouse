@@ -69,14 +69,24 @@ export async function githubIssueToClubhouseStory(options) {
   console.log("SPLIT", options.githubProject.split("/"))
   const [owner, repo] = options.githubProject.split("/")
 
-  var issues = {}
+  var issues = []
   if ('issue' in options) {
     issues = [await getIssue(options.githubToken, owner, repo, options.issue)]
   } else {
-    issues = await queryIssues(options.githubToken, owner, repo, options.query)
-    issues = issues.items
+    var resp = await queryIssues(options.githubToken, owner, repo, options.query)
+
+    if (Array.isArray(resp)) {
+      for (const slice of resp) {
+        issues = issues.concat(slice.items)
+      }
+      console.log("combined slices")
+    }
+    else {
+      issues = resp.items
+      console.log("one result set")
+    }
   }
-  console.log("issues:", issues)
+  console.log("issues to process:", issues.length)
 
   var count=0
   for (const issue of issues) {

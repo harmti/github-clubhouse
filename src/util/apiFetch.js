@@ -1,6 +1,7 @@
 import fetch from 'node-fetch'
 import buildUrl from 'build-url'
 import parseLinkHeader from 'parse-link-header'
+import sleep from 'await-sleep'
 
 const DEFAULT_HEADERS = {
   Accept: 'application/json',
@@ -33,9 +34,34 @@ function apiBuildUrl(urlData) {
 function apiFetchRaw(urlData, opts) {
   opts.headers = Object.assign({}, DEFAULT_HEADERS, opts.headers)
 
-  const url = apiBuildUrl(urlData)
+  const url = (typeof urlData === 'object') ? apiBuildUrl(urlData) : urlData
+
   console.log("apiFetchRaw", url, opts)
   return fetch(url, opts)
+}
+
+const MAX_RETRY = 1000
+
+function apiFetchRawRetry(urlData, opts, n = MAX_RETRY) {
+
+  return apiFetchRaw(urlData, opts)
+    .then(resp => {
+
+      if (!resp.ok && n > 1) {
+        //clubhouse returns 429, github 403 and X-RateLimit-Reset in headers
+        if (resp.status === 429 || (resp.status === 403 && resp.headers.has('X-RateLimit-Reset'))) {
+          console.log("rate limiting exceeded, sleeping before retry")
+
+          //await sleep((MAX_RETRY - n + 1) * 1000)
+          return apiFetchRawRetry(urlData, opts, n - 1);
+        }
+        else if (!resp.ok) {
+          throw new APIError(resp.status, resp.statusText, urlData)
+        }
+      }
+
+      return resp
+    })
 }
 
 export function apiFetch(urlData, opts = {}) {
@@ -48,8 +74,9 @@ export function apiFetch(urlData, opts = {}) {
     })
 }
 
+
 export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
-  return apiFetchRaw(urlData, opts)
+  return apiFetchRawRetry(urlData, opts)
     .then(resp => {
       if (!resp.ok) {
         throw new APIError(resp.status, resp.statusText, urlData)
@@ -68,3 +95,28 @@ export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
         })
     })
 }
+
+
+// export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
+
+//   var resp = apiFetchRawRetry(urlData, opts)
+
+//   console.log("resp", resp)
+//   if (!resp.ok) {
+//     throw new APIError(resp.status, resp.statusText, urlData)
+//   }
+
+//   const link = parseLinkHeader(resp.headers.get('Link'))
+//   let next = null
+//   if (link && link.next) {
+//     next = link.next.results && !eval(link.next.results) ? null : link.next.url // eslint-disable-line no-eval
+//   }
+
+//   const results = prevResults.concat(resp.json())
+//   console.log("results len", results.length)
+
+//   if (next) {
+//     return apiFetchAllPages(next, opts, results)
+//   }
+//   return results
+// }
