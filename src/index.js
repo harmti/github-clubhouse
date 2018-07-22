@@ -35,8 +35,9 @@ export async function githubIssueToClubhouseStory(options) {
   _assertOption('clubhouseProject', options)
   _assertOption('githubProject', options)
 
-  log("Querying clubhouse users")
+  userMappings = JSON.parse(options.userMap)
 
+  log("Querying clubhouse users")
   const clubhouseUsers = await listUsers(options.clubhouseToken)
   //log("clubhouseUsers", clubhouseUsers)
   const clubhouseUsersByName = clubhouseUsers.reduce((acc, user) => {
@@ -46,7 +47,6 @@ export async function githubIssueToClubhouseStory(options) {
   //log("clubhouseUsersByName", clubhouseUsersByName)
 
   log("Querying clubhouse labels")
-
   const clubhouseLabels = await listLabels(options.clubhouseToken)
   //log("clubhouseLabels", clubhouseLabels)
   const clubhouseLabelsByName = clubhouseLabels.reduce((acc, label) => {
@@ -123,25 +123,22 @@ function _assertOption(name, options) {
   }
 }
 
-
-//const userMappings = {
-//  "melor": "melohmu", "harmti": "timoharm"}
-
-const userMappings = {}
+// format: {"gh-user-1": "clubhouse-user-1", "gh-user-2": "clubhouse-user-2"}
+var userMappings = {}
 
 function _mapUser(clubhouseUsersByName, githubUsername) {
 
   //log("githubUsername", githubUsername)
 
   var username
-  if (userMappings[githubUsername]) {
+  if (githubUsername in userMappings) {
     username = userMappings[githubUsername]
   }
   else {
     username = githubUsername
   }
 
-  //log("username", username)
+  //log("username-mapping:", githubUsername, "->", username)
   if (clubhouseUsersByName[username]) {
     return clubhouseUsersByName[username].id
   }
@@ -155,7 +152,7 @@ function _mapUser(clubhouseUsersByName, githubUsername) {
 
 /* eslint-disable camelcase */
 
-function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, stateId, issue, issueComments, issueLabels) {
+function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, stateId, issue, issueComments, issueLabels, optUserMappings) {
 
   var story = {
     project_id: projectId,

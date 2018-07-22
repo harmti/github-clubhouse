@@ -17,12 +17,13 @@ var githubIssueToClubhouseStory = ghCh.githubIssueToClubhouseStory
 
 function run() {
   var args = parseArgs(process.argv.slice(2), {
-    string: ['github-token', 'clubhouse-token', 'github-project', 'clubhouse-project', 'issue', 'query'],
+    string: ['github-token', 'clubhouse-token', 'github-project', 'clubhouse-project', 'user-map', 'issue', 'query'],
     boolean: ['s', 'h', 'n'],
     alias: {
       h: 'help',
       s: 'save-config',
       n: 'dry-run',
+      u: 'user-map',
     },
   })
   //console.log(args)
@@ -70,7 +71,8 @@ function _usage() {
     '  --github-token=TOKEN           your GitHub API token\n' +
     '  --clubhouse-token=TOKEN        your Clubhouse API token' +
     '  --github-project=REPO/PROJECT  your github repo/project name' +
-    '  --clubhouse-project=PROJECT    your Clubhouse project name'
+    '  --clubhouse-project=PROJECT    your Clubhouse project name' +
+    '  --user-map=JSON-USER_MAP       json object of gh-user:clubhouse-user mappings'
 }
 
 function _loadAndOrSaveOptions(args) {
