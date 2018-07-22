@@ -3,6 +3,8 @@ import buildUrl from 'build-url'
 import parseLinkHeader from 'parse-link-header'
 import sleep from 'await-sleep'
 
+import {log} from './logging'
+
 const DEFAULT_HEADERS = {
   Accept: 'application/json',
 }
@@ -21,12 +23,6 @@ class APIError extends Error {
 
 function apiBuildUrl(urlData) {
 
-  // remove queryParanms if empty, othwerise will have extra "?" in the URL
-//  if ('queryParams' in urlData && Object.keys(urlData.queryParams).length === 0) {
-//    delete urlData.queryParams
-//  }
-
-  //console.log("apiBuildUrl", urlData, buildUrl(urlData.base, urlData))
   return buildUrl(urlData.base, urlData)
 }
 
@@ -36,7 +32,7 @@ function apiFetchRaw(urlData, opts) {
 
   const url = (typeof urlData === 'object') ? apiBuildUrl(urlData) : urlData
 
-  console.log("apiFetchRaw", url, opts)
+  //log("apiFetchRaw", url, opts)
   return fetch(url, opts)
 }
 
@@ -50,8 +46,7 @@ function apiFetchRawRetry(urlData, opts, n = MAX_RETRY) {
       if (!resp.ok && n > 1) {
         //clubhouse returns 429, github 403 and X-RateLimit-Reset in headers
         if (resp.status === 429 || (resp.status === 403 && resp.headers.has('X-RateLimit-Reset'))) {
-          console.log("rate limiting exceeded, sleeping before retry")
-
+          log("    API rate limiting exceeded, retrying")
           //await sleep((MAX_RETRY - n + 1) * 1000)
           return apiFetchRawRetry(urlData, opts, n - 1);
         }
@@ -101,7 +96,7 @@ export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
 
 //   var resp = apiFetchRawRetry(urlData, opts)
 
-//   console.log("resp", resp)
+//   log("resp", resp)
 //   if (!resp.ok) {
 //     throw new APIError(resp.status, resp.statusText, urlData)
 //   }
@@ -113,7 +108,7 @@ export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
 //   }
 
 //   const results = prevResults.concat(resp.json())
-//   console.log("results len", results.length)
+//   log("results len", results.length)
 
 //   if (next) {
 //     return apiFetchAllPages(next, opts, results)

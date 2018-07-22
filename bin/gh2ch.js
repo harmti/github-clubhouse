@@ -25,7 +25,7 @@ function run() {
       n: 'dry-run',
     },
   })
-  console.log(args)
+  //console.log(args)
 
   if (args.h) {
     console.info(_usage())
@@ -40,11 +40,11 @@ function run() {
   }
 
   var options = _loadAndOrSaveOptions(args)
-  console.log(options)
+  //console.log(options)
 
   githubIssueToClubhouseStory(options)
     .then(function(count) {
-      console.info('Created stories:', count)
+      console.info(`\nImported ${count} stories`)
     })
     .catch(function(err) {
       console.error(err)
@@ -76,7 +76,7 @@ function _usage() {
 function _loadAndOrSaveOptions(args) {
   var options = loadConfig()
   options = Object.assign(options, camelcaseObject(args))
-  console.log(options)
+  //console.log(options)
   if (args.s) {
     if (!args['github-token'] || !args['clubhouse-token']) {
       return _die('Cannot save configuration unless both `--github-token` and `--clubhouse-token` are provided.')
