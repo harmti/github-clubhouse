@@ -10,14 +10,15 @@ const DEFAULT_HEADERS = {
 }
 
 class APIError extends Error {
-  constructor(status, statusText, urlData) {
-    const url = apiBuildUrl(urlData)
+  constructor(status, statusText, text, url) {
     const message = `API Error ${status} (${statusText}) trying to invoke API (url = '${url}')`
     super(message)
     this.name = 'APIError'
     this.status = status
     this.statusText = statusText
     this.url = url
+
+    text.then(text => log(text + "\n"))
   }
 }
 
@@ -46,12 +47,12 @@ function apiFetchRawRetry(urlData, opts, n = MAX_RETRY) {
       if (!resp.ok && n > 1) {
         //clubhouse returns 429, github 403 and X-RateLimit-Reset in headers
         if (resp.status === 429 || (resp.status === 403 && resp.headers.has('X-RateLimit-Reset'))) {
-          log("    API rate limiting exceeded, retrying")
+          log("    API rate limit exceeded, retrying")
           //await sleep((MAX_RETRY - n + 1) * 1000)
           return apiFetchRawRetry(urlData, opts, n - 1);
         }
         else if (!resp.ok) {
-          throw new APIError(resp.status, resp.statusText, urlData)
+          throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
         }
       }
 
@@ -63,7 +64,7 @@ export function apiFetch(urlData, opts = {}) {
   return apiFetchRaw(urlData, opts)
     .then(resp => {
       if (!resp.ok) {
-        throw new APIError(resp.status, resp.statusText, urlData)
+        throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
       }
       return resp.json()
     })
@@ -74,7 +75,7 @@ export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
   return apiFetchRawRetry(urlData, opts)
     .then(resp => {
       if (!resp.ok) {
-        throw new APIError(resp.status, resp.statusText, urlData)
+        throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
       }
       const link = parseLinkHeader(resp.headers.get('Link'))
       let next = null
@@ -98,7 +99,7 @@ export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
 
 //   log("resp", resp)
 //   if (!resp.ok) {
-//     throw new APIError(resp.status, resp.statusText, urlData)
+//     throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
 //   }
 
 //   const link = parseLinkHeader(resp.headers.get('Link'))

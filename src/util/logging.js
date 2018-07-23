@@ -3,12 +3,26 @@
 let prevMessage = ""
 let dotCount = 0
 
-export function log(clubhouseStoryURL) {
+export function log() {
 
   var message = ""
   for (var i = 0; i < arguments.length; i++) {
-   message += arguments[i];
+    message += _toString(arguments[i]);
   }
+  _log(message)
+}
+
+export function logAppend() {
+
+  var message = ""
+  for (var i = 0; i < arguments.length; i++) {
+    message += _toString(arguments[i]);
+  }
+  _log(message, true)
+}
+
+
+function _log(message, append = false) {
   // do not repeat the previous message, just output a dot
   if (message === prevMessage) {
     process.stdout.write(".")
@@ -19,7 +33,19 @@ export function log(clubhouseStoryURL) {
     if (dotCount > 0) {
       dotCount = 0
     }
-    process.stdout.write("\n" + message)
+    if (!append) {
+      message = "\n" + message
+    }
+    process.stdout.write(message)
   }
 
+}
+
+
+function _toString(item) {
+
+  if (typeof item === 'object')
+    return JSON.stringify(item)
+  else
+    return item
 }

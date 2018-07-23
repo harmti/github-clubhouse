@@ -3,7 +3,7 @@ import Bluebird from 'bluebird'
 import {getIssue, queryIssues, getCommentsForIssue, getLabelsForIssue, createIssue, createIssueComment} from './fetchers/gitHub'
 import {getStory, listUsers, listLabels, listProjects, listWorkflows, createStory, createLabel} from './fetchers/clubhouse'
 import {parseClubhouseStoryURL, parseGithubIssueURL, parseGithubRepoURL} from './util/urlParse'
-import {log} from './util/logging'
+import {log, logAppend} from './util/logging'
 
 export {saveConfig, loadConfig} from './util/config'
 
@@ -99,6 +99,7 @@ export async function githubIssueToClubhouseStory(options) {
   var count=0
   for (const issue of issues) {
     //log("issue", issue)
+    log(`Github issue #${issue.number} --> `)
     const issueComments = await getCommentsForIssue(options.githubToken, owner, repo, issue.number)
     const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issue.number)
     //log("comments", issueComments)
@@ -108,10 +109,10 @@ export async function githubIssueToClubhouseStory(options) {
 
     if (!options.dryRun) {
       const story = await createStory(options.clubhouseToken, unsavedStory)
-      log(`Created story (github #${issue.number}): ${story.id} ${story.name}`)
+      logAppend(`Clubhouse #${story.id} ${story.name}`)
       count=count+1
     } else
-      log(`Not creating story for github issue #${issue.number}:`, issue.title)
+      logAppend(`Not creating story for:`, issue.title)
   }
 
   return count
