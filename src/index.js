@@ -158,7 +158,7 @@ function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, s
   var story = {
     project_id: projectId,
     name: issue.title,
-    description: issue.body,
+    description: (issue.body != null) ? issue.body : "",
     comments: _presentGithubComments(clubhouseUsersByName, issueComments),
     labels: _presentGithubLabels(clubhouseLabelsByName, issueLabels),
     //labels:  [{name: 'ddsui', color: '#dbca06', external_id: 'bar' }],
