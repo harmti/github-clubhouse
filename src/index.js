@@ -16,7 +16,7 @@ export async function clubhouseStoryToGithubIssue(clubhouseStoryURL, githubRepoU
 
   const clubhouseUsers = await listUsers(options.clubhouseToken)
   const clubhouseUsersById = clubhouseUsers.reduce((acc, user) => {
-    acc[user.id] = user
+    acc[user.id.toLowerCase()] = user
     return acc
   })
 
@@ -41,7 +41,7 @@ export async function githubIssueToClubhouseStory(options) {
   const clubhouseUsers = await listUsers(options.clubhouseToken)
   //log("clubhouseUsers", clubhouseUsers)
   const clubhouseUsersByName = clubhouseUsers.reduce((acc, user) => {
-    acc[user.profile.mention_name] = user
+    acc[user.profile.mention_name.toLowerCase()] = user
     return acc
   }, {} )
   //log("clubhouseUsersByName", clubhouseUsersByName)
@@ -130,6 +130,9 @@ var userMappings = {}
 function _mapUser(clubhouseUsersByName, githubUsername) {
 
   //log("githubUsername", githubUsername)
+
+  // make comparison lower case
+  githubUsername = githubUsername.toLowerCase()
 
   var username
   if (githubUsername in userMappings) {
