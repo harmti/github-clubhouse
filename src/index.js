@@ -147,10 +147,20 @@ function _mapUser(clubhouseUsersByName, githubUsername) {
     return clubhouseUsersByName[username].id
   }
   else {
-    // default username if not found...
+    // username not found
     //log("Warning, user missing from clubhouse:", username)
     //log("Object.keys(clubhouseUsersByName)", Object.keys(clubhouseUsersByName))
-    return clubhouseUsersByName[Object.keys(clubhouseUsersByName)[0]].id
+
+    // '*' can be used to define the default username
+    if ('*' in userMappings && userMappings['*'] in clubhouseUsersByName) {
+      username = userMappings['*']
+    }
+    else {
+      // othwerwise just pick the first one...
+      username = Object.keys(clubhouseUsersByName)[0]
+    }
+
+    return clubhouseUsersByName[username].id
   }
 }
 
