@@ -46,15 +46,6 @@ export async function githubIssueToClubhouseStory(options) {
   }, {} )
   //log("clubhouseUsersByName", clubhouseUsersByName)
 
-  log("Querying clubhouse labels")
-  const clubhouseLabels = await listLabels(options.clubhouseToken)
-  //log("clubhouseLabels", clubhouseLabels)
-  const clubhouseLabelsByName = clubhouseLabels.reduce((acc, label) => {
-    acc[label.name] = label
-    return acc
-  }, {} )
-  //log("clubhouseLabelsByName", clubhouseLabelsByName)
-
   log("Querying clubhouse workflows")
   // simply use the first 'unstarted' and 'done' states of the first workflow
   const clubhouseWorkflows = await listWorkflows(options.clubhouseToken)
@@ -104,7 +95,7 @@ export async function githubIssueToClubhouseStory(options) {
     const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issue.number)
     //log("comments", issueComments)
     //log("labels", issueLabels)
-    const unsavedStory = _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, stateId, issue, issueComments, issueLabels)
+    const unsavedStory = _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueComments, issueLabels)
     //log("story", unsavedStory)
 
     if (!options.dryRun) {
@@ -166,15 +157,14 @@ function _mapUser(clubhouseUsersByName, githubUsername) {
 
 /* eslint-disable camelcase */
 
-function _issueToStory(clubhouseUsersByName, clubhouseLabelsByName, projectId, stateId, issue, issueComments, issueLabels, optUserMappings) {
+function _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueComments, issueLabels, optUserMappings) {
 
   var story = {
     project_id: projectId,
     name: issue.title,
     description: (issue.body != null) ? issue.body : "",
     comments: _presentGithubComments(clubhouseUsersByName, issueComments),
-    labels: _presentGithubLabels(clubhouseLabelsByName, issueLabels),
-    //labels:  [{name: 'ddsui', color: '#dbca06', external_id: 'bar' }],
+    labels: _presentGithubLabels(issueLabels),
     created_at: issue.created_at,
     updated_at: issue.updated_at,
     external_id: issue.html_url,
@@ -203,26 +193,10 @@ function _presentGithubComments(clubhouseUsersByName, issueComments) {
   }))
 }
 
-function _presentGithubLabels(clubhouseLabelsByName, issueLabels) {
-
-  // Create labels missing from clubhouse
-  //log("checking if new github labels needed for", issueLabels)
-  for (let issueLabel of issueLabels) {
-    if (!(issueLabel.name in clubhouseLabelsByName)) {
-      log("creating label", issueLabel.name, `#${issueLabel.color}`)
-      var label = createLabel({
-        name: issueLabel.name,
-        color: `#${issueLabel.color}`
-        //created_at: issueLabel.created_at,
-        //updated_at: issueLabel.updated_at,
-        //external_id: issueLabel.url,
-      })
-      clubhouseLabelsByName[label.name] = label
-    }
-  }
-
+function _presentGithubLabels(issueLabels) {
   return issueLabels.map(issueLabel => ({
     name: issueLabel.name,
+    color: `#${issueLabel.color}`,
   }))
 }
 
