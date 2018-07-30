@@ -18,7 +18,8 @@ class APIError extends Error {
     this.statusText = statusText
     this.url = url
 
-    text.then(text => log(text + "\n"))
+    if (text != null)
+      text.then(text => log(text + "\n"))
   }
 }
 
@@ -37,31 +38,37 @@ function apiFetchRaw(urlData, opts) {
   return fetch(url, opts)
 }
 
-const MAX_RETRY = 1000
+const MAX_RETRY = 3
 
-function apiFetchRawRetry(urlData, opts, n = MAX_RETRY) {
-
+async function apiFetchRawRetry(urlData, opts, n = MAX_RETRY) {
   return apiFetchRaw(urlData, opts)
-    .then(resp => {
-
-      if (!resp.ok && n > 1) {
+    .then(async resp => {
+      if (!resp.ok && n > 0) {
         //clubhouse returns 429, github 403 and X-RateLimit-Reset in headers
         if (resp.status === 429 || (resp.status === 403 && resp.headers.has('X-RateLimit-Reset'))) {
           log("    API rate limit exceeded, retrying")
-          //await sleep((MAX_RETRY - n + 1) * 1000)
-          return apiFetchRawRetry(urlData, opts, n - 1);
+          await sleep(1000)
+          // exceeding rate limit does not count as a retry...
+          return await apiFetchRawRetry(urlData, opts, n)
         }
         else if (!resp.ok) {
           throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
         }
       }
-
       return resp
+    })
+    .catch(async error => {
+      log(`    Network error ${error.errno}:${error.url}, retrying`)
+      await sleep(1000)
+      if (n > 0)
+        return await apiFetchRawRetry(urlData, opts, n - 1)
+      else
+        throw new APIError(error.errno, error.message, null, error.url)
     })
 }
 
 export function apiFetch(urlData, opts = {}) {
-  return apiFetchRaw(urlData, opts)
+  return apiFetchRawRetry(urlData, opts)
     .then(resp => {
       if (!resp.ok) {
         throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
@@ -93,26 +100,3 @@ export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
 }
 
 
-// export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
-
-//   var resp = apiFetchRawRetry(urlData, opts)
-
-//   log("resp", resp)
-//   if (!resp.ok) {
-//     throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
-//   }
-
-//   const link = parseLinkHeader(resp.headers.get('Link'))
-//   let next = null
-//   if (link && link.next) {
-//     next = link.next.results && !eval(link.next.results) ? null : link.next.url // eslint-disable-line no-eval
-//   }
-
-//   const results = prevResults.concat(resp.json())
-//   log("results len", results.length)
-
-//   if (next) {
-//     return apiFetchAllPages(next, opts, results)
-//   }
-//   return results
-// }
