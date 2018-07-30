@@ -18,7 +18,7 @@ export function getIssue(token, owner, repoName, issueNumber) {
 }
 
 export function queryIssues(token, owner, repoName, issueQuery) {
-  const issueUrl = apiURL(`/search/issues`, {q: issueQuery + ` repo:${owner}/${repoName}`})
+  const issueUrl = apiURL(`/search/issues`, {q: issueQuery + ` repo:${owner}/${repoName}`, sort:'created', order:'asc'})
   return apiFetchAllPages(issueUrl, {headers: headers(token)})
 }
 
