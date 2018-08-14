@@ -35,7 +35,7 @@ export async function githubIssueToClubhouseStory(options) {
   _assertOption('clubhouseProject', options)
   _assertOption('githubProject', options)
 
-  userMappings = JSON.parse(options.userMap)
+  var userMappings = JSON.parse(options.userMap)
 
   log("Querying clubhouse users")
   const clubhouseUsers = await listUsers(options.clubhouseToken)
@@ -95,7 +95,7 @@ export async function githubIssueToClubhouseStory(options) {
     const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issue.number)
     //log("comments", issueComments)
     //log("labels", issueLabels)
-    const unsavedStory = _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueComments, issueLabels)
+    const unsavedStory = _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueComments, issueLabels, userMappings)
     //log("story", unsavedStory)
 
     if (!options.dryRun) {
@@ -115,10 +115,8 @@ function _assertOption(name, options) {
   }
 }
 
-// format: {"gh-user-1": "clubhouse-user-1", "gh-user-2": "clubhouse-user-2"}
-var userMappings = {}
 
-function _mapUser(clubhouseUsersByName, githubUsername) {
+function _mapUser(clubhouseUsersByName, githubUsername, userMappings) {
 
   //log("githubUsername", githubUsername)
 
@@ -157,22 +155,22 @@ function _mapUser(clubhouseUsersByName, githubUsername) {
 
 /* eslint-disable camelcase */
 
-function _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueComments, issueLabels, optUserMappings) {
+function _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueComments, issueLabels, userMappings) {
 
   var story = {
     project_id: projectId,
     name: issue.title,
     description: (issue.body != null) ? issue.body : "",
-    comments: _presentGithubComments(clubhouseUsersByName, issueComments),
+    comments: _presentGithubComments(clubhouseUsersByName, issueComments, userMappings),
     labels: _presentGithubLabels(issueLabels),
     created_at: issue.created_at,
     updated_at: issue.updated_at,
     external_id: issue.html_url,
-    requested_by_id: _mapUser(clubhouseUsersByName, issue.user.login),
+    requested_by_id: _mapUser(clubhouseUsersByName, issue.user.login, userMappings),
   }
 
   if (issue.assignee != null) {
-    story.owner_ids = [_mapUser(clubhouseUsersByName, issue.assignee.login)]
+    story.owner_ids = [_mapUser(clubhouseUsersByName, issue.assignee.login, userMappings)]
   }
 
   if (issue.state === 'closed') {
@@ -183,9 +181,9 @@ function _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueCom
   return story
 }
 
-function _presentGithubComments(clubhouseUsersByName, issueComments) {
+function _presentGithubComments(clubhouseUsersByName, issueComments, userMappings) {
   return issueComments.map(issueComment => ({
-    author_id: _mapUser(clubhouseUsersByName, issueComment.user.login),
+    author_id: _mapUser(clubhouseUsersByName, issueComment.user.login, userMappings),
     text: issueComment.body,
     created_at: issueComment.created_at,
     updated_at: issueComment.updated_at,

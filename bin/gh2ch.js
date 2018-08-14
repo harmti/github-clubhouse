@@ -40,6 +40,9 @@ function run() {
     return _die('Use --issue or --query, run --help for usage')
   }
 
+  if (!('user-map' in args))
+    args['user-map'] = "{}"
+
   var options = _loadAndOrSaveOptions(args)
   //console.log(options)
 
