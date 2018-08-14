@@ -33,11 +33,11 @@ export async function githubIssueToClubhouseStory(options) {
   _assertOption('githubToken', options)
   _assertOption('clubhouseToken', options)
   _assertOption('clubhouseProject', options)
-  _assertOption('githubProject', options)
+  _assertOption('githubRepo', options)
 
   var userMappings = JSON.parse(options.userMap)
 
-  log("Querying clubhouse users")
+  log("Querying Clubhouse users")
   const clubhouseUsers = await listUsers(options.clubhouseToken)
   //log("clubhouseUsers", clubhouseUsers)
   const clubhouseUsersByName = clubhouseUsers.reduce((acc, user) => {
@@ -46,7 +46,7 @@ export async function githubIssueToClubhouseStory(options) {
   }, {} )
   //log("clubhouseUsersByName", clubhouseUsersByName)
 
-  log("Querying clubhouse workflows")
+  log("Querying Clubhouse workflows")
   // simply use the first 'unstarted' and 'done' states of the first workflow
   const clubhouseWorkflows = await listWorkflows(options.clubhouseToken)
   //log("clubhouseWorkflows", clubhouseWorkflows)
@@ -54,7 +54,7 @@ export async function githubIssueToClubhouseStory(options) {
                    done: clubhouseWorkflows[0].states.find(state => state.type === 'done').id }
   //log("stateId", stateId)
 
-  log("Querying clubhouse projects")
+  log("Querying Clubhouse projects")
   const projects = await listProjects(options.clubhouseToken)
   const project = projects.find(project => project.name === options['clubhouseProject'])
 
@@ -64,14 +64,14 @@ export async function githubIssueToClubhouseStory(options) {
 
   const {id: projectId} = project
 
-  const [owner, repo] = options.githubProject.split("/")
+  const [owner, repo] = options.githubRepo.split("/")
 
   var issues = []
   if ('issue' in options) {
-    log("Get github issue data")
+    log("Get GitHub issue data")
     issues = [await getIssue(options.githubToken, owner, repo, options.issue)]
   } else {
-    log("Querying github issues")
+    log("Querying GitHub issues")
     var resp = await queryIssues(options.githubToken, owner, repo, options.query)
 
     if (Array.isArray(resp)) {
@@ -90,7 +90,7 @@ export async function githubIssueToClubhouseStory(options) {
   var count=0
   for (const issue of issues) {
     //log("issue", issue)
-    log(`Github issue #${issue.number} --> `)
+    log(`GitHub #${issue.number} --> `)
     const issueComments = await getCommentsForIssue(options.githubToken, owner, repo, issue.number)
     const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issue.number)
     //log("comments", issueComments)
@@ -137,7 +137,7 @@ function _mapUser(clubhouseUsersByName, githubUsername, userMappings) {
   }
   else {
     // username not found
-    //log("Warning, user missing from clubhouse:", username)
+    //log("Warning, user missing from Clubhouse:", username)
     //log("Object.keys(clubhouseUsersByName)", Object.keys(clubhouseUsersByName))
 
     // '*' can be used to define the default username

@@ -17,7 +17,7 @@ var githubIssueToClubhouseStory = ghCh.githubIssueToClubhouseStory
 
 function run() {
   var args = parseArgs(process.argv.slice(2), {
-    string: ['github-token', 'clubhouse-token', 'github-project', 'clubhouse-project', 'user-map', 'issue', 'query'],
+    string: ['github-token', 'clubhouse-token', 'github-repo', 'clubhouse-project', 'user-map', 'issue', 'query'],
     boolean: ['s', 'h', 'n'],
     alias: {
       h: 'help',
@@ -63,19 +63,22 @@ function _die(message) {
 
 function _usage() {
   return 'Usage:\n' +
-    '  ' + path.basename(process.argv[1]) + ' GITHUB_ISSUE_URL CLUBHOUSE_PROJECT_NAME\n' +
+    '  ' + path.basename(process.argv[1]) + ' [OPTIONS]\n' +
     '\n' +
     'Options:\n' +
     '  -h, --help                     display this help message\n' +
     '  -n, --dry-run                  test run, do not import\n' +
     '  -s, --save-config              save configuration into ~/.github-clubhouse\n' +
-    '  --issue=NUMBER                 github issue number' +
-    '  --query=QUERY                  github issue query' +
+    '  --issue=NUMBER                 GitHub issue number\n' +
+    '  --query=QUERY                  GitHub issue query \n' +
+    '                                     e.g. "state:closed created:>2017"\n' +
     '  --github-token=TOKEN           your GitHub API token\n' +
-    '  --clubhouse-token=TOKEN        your Clubhouse API token' +
-    '  --github-project=REPO/PROJECT  your github repo/project name' +
-    '  --clubhouse-project=PROJECT    your Clubhouse project name' +
-    '  --user-map=JSON-USER_MAP       json object of gh-user:clubhouse-user mappings'
+    '  --clubhouse-token=TOKEN        your Clubhouse API token\n' +
+    '  --github-repo=OWNER/REPO       your GitHub owner/repo\n' +
+    '  --clubhouse-project=PROJECT    your Clubhouse project name\n' +
+    '  --user-map=JSON-USER_MAP       json object of gh-user:clubhouse-user mappings\n' +
+    '                                     use "*" for default\n' +
+    '                                     e.g. \'{"my_gh_id":"my_ch_id", "*":"default_id"}\'\n'
 }
 
 function _loadAndOrSaveOptions(args) {
