@@ -1,8 +1,8 @@
 import Bluebird from 'bluebird'
 
 import {getIssue, queryIssues, getCommentsForIssue, getLabelsForIssue, createIssue, createIssueComment} from './fetchers/gitHub'
-import {getStory, listUsers, listLabels, listProjects, listWorkflows, createStory, createLabel} from './fetchers/clubhouse'
-import {parseClubhouseStoryURL, parseGithubIssueURL, parseGithubRepoURL} from './util/urlParse'
+import {getStory, listUsers, listProjects, listWorkflows, createStory} from './fetchers/clubhouse'
+import {parseClubhouseStoryURL, parseGithubRepoURL} from './util/urlParse'
 import {log, logAppend} from './util/logging'
 
 export {saveConfig, loadConfig} from './util/config'
@@ -35,75 +35,75 @@ export async function githubIssueToClubhouseStory(options) {
   _assertOption('clubhouseProject', options)
   _assertOption('githubRepo', options)
 
-  var userMappings = JSON.parse(options.userMap)
+  const userMappings = JSON.parse(options.userMap)
 
-  log("Querying Clubhouse users")
+  log('Querying Clubhouse users')
   const clubhouseUsers = await listUsers(options.clubhouseToken)
-  //log("clubhouseUsers", clubhouseUsers)
+  // log("clubhouseUsers", clubhouseUsers)
   const clubhouseUsersByName = clubhouseUsers.reduce((acc, user) => {
     acc[user.profile.mention_name.toLowerCase()] = user
     return acc
-  }, {} )
-  //log("clubhouseUsersByName", clubhouseUsersByName)
+  }, {})
+  // log("clubhouseUsersByName", clubhouseUsersByName)
 
-  log("Querying Clubhouse workflows")
+  log('Querying Clubhouse workflows')
   // simply use the first 'unstarted' and 'done' states of the first workflow
   const clubhouseWorkflows = await listWorkflows(options.clubhouseToken)
-  //log("clubhouseWorkflows", clubhouseWorkflows)
+  // log("clubhouseWorkflows", clubhouseWorkflows)
   const stateId = {open: clubhouseWorkflows[0].states.find(state => state.type === 'unstarted').id,
-                   done: clubhouseWorkflows[0].states.find(state => state.type === 'done').id }
-  //log("stateId", stateId)
+    done: clubhouseWorkflows[0].states.find(state => state.type === 'done').id}
+  // log("stateId", stateId)
 
-  log("Querying Clubhouse projects")
+  log('Querying Clubhouse projects')
   const projects = await listProjects(options.clubhouseToken)
-  const project = projects.find(project => project.name === options['clubhouseProject'])
+  const project = projects.find(project => project.name === options.clubhouseProject)
 
   if (!project) {
-    throw new Error(`The '${options['clubhouseProject']}' project wasn't found in your Clubhouse`)
+    throw new Error(`The '${options.clubhouseProject}' project wasn't found in your Clubhouse`)
   }
 
   const {id: projectId} = project
 
-  const [owner, repo] = options.githubRepo.split("/")
+  const [owner, repo] = options.githubRepo.split('/')
 
-  var issues = []
+  let issues = []
   if ('issue' in options) {
-    log("Get GitHub issue data")
+    log('Get GitHub issue data')
     issues = [await getIssue(options.githubToken, owner, repo, options.issue)]
   } else {
-    log("Querying GitHub issues")
-    var resp = await queryIssues(options.githubToken, owner, repo, options.query)
+    log('Querying GitHub issues')
+    const resp = await queryIssues(options.githubToken, owner, repo, options.query)
 
     if (Array.isArray(resp)) {
       for (const slice of resp) {
         issues = issues.concat(slice.items)
       }
-      //log("combined slices")
-    }
-    else {
+      // log("combined slices")
+    } else {
       issues = resp.items
-      //log("one result set")
+      // log("one result set")
     }
   }
-  log("Issues to import:", issues.length)
+  log('Issues to import:', issues.length)
 
-  var count=0
+  let count = 0
   for (const issue of issues) {
-    //log("issue", issue)
+    // log("issue", issue)
     log(`GitHub #${issue.number} --> `)
     const issueComments = await getCommentsForIssue(options.githubToken, owner, repo, issue.number)
     const issueLabels = await getLabelsForIssue(options.githubToken, owner, repo, issue.number)
-    //log("comments", issueComments)
-    //log("labels", issueLabels)
+    // log("comments", issueComments)
+    // log("labels", issueLabels)
     const unsavedStory = _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueComments, issueLabels, userMappings)
-    //log("story", unsavedStory)
+    // log("story", unsavedStory)
 
     if (!options.dryRun) {
       const story = await createStory(options.clubhouseToken, unsavedStory)
       logAppend(`Clubhouse #${story.id} ${story.name}`)
-      count=count+1
-    } else
-      logAppend(`Not creating story for:`, issue.title)
+      count += 1
+    } else {
+      logAppend('Not creating story for:', issue.title)
+    }
   }
 
   return count
@@ -115,52 +115,46 @@ function _assertOption(name, options) {
   }
 }
 
-
 function _mapUser(clubhouseUsersByName, githubUsername, userMappings) {
-
-  //log("githubUsername", githubUsername)
+  // log("githubUsername", githubUsername)
 
   // make comparison lower case
   githubUsername = githubUsername.toLowerCase()
 
-  var username
+  let username
   if (githubUsername in userMappings) {
     username = userMappings[githubUsername]
-  }
-  else {
+  } else {
     username = githubUsername
   }
 
-  //log("username-mapping:", githubUsername, "->", username)
+  // log("username-mapping:", githubUsername, "->", username)
   if (clubhouseUsersByName[username]) {
     return clubhouseUsersByName[username].id
   }
-  else {
+
     // username not found
-    //log("Warning, user missing from Clubhouse:", username)
-    //log("Object.keys(clubhouseUsersByName)", Object.keys(clubhouseUsersByName))
+    // log("Warning, user missing from Clubhouse:", username)
+    // log("Object.keys(clubhouseUsersByName)", Object.keys(clubhouseUsersByName))
 
     // '*' can be used to define the default username
-    if ('*' in userMappings && userMappings['*'] in clubhouseUsersByName) {
-      username = userMappings['*']
-    }
-    else {
+  if ('*' in userMappings && userMappings['*'] in clubhouseUsersByName) {
+    username = userMappings['*']
+  } else {
       // othwerwise just pick the first one...
-      username = Object.keys(clubhouseUsersByName)[0]
-    }
-
-    return clubhouseUsersByName[username].id
+    username = Object.keys(clubhouseUsersByName)[0]
   }
+
+  return clubhouseUsersByName[username].id
 }
 
 /* eslint-disable camelcase */
 
 function _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueComments, issueLabels, userMappings) {
-
-  var story = {
+  const story = {
     project_id: projectId,
     name: issue.title,
-    description: (issue.body != null) ? issue.body : "",
+    description: (issue.body !== null) ? issue.body : '',
     comments: _presentGithubComments(clubhouseUsersByName, issueComments, userMappings),
     labels: _presentGithubLabels(issueLabels),
     created_at: issue.created_at,
@@ -169,7 +163,7 @@ function _issueToStory(clubhouseUsersByName, projectId, stateId, issue, issueCom
     requested_by_id: _mapUser(clubhouseUsersByName, issue.user.login, userMappings),
   }
 
-  if (issue.assignee != null) {
+  if (issue.assignee !== null) {
     story.owner_ids = [_mapUser(clubhouseUsersByName, issue.assignee.login, userMappings)]
   }
 

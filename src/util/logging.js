@@ -1,51 +1,43 @@
 
-
-let prevMessage = ""
+let prevMessage = ''
 let dotCount = 0
 
 export function log() {
-
-  var message = ""
-  for (var i = 0; i < arguments.length; i++) {
-    message += _toString(arguments[i]);
+  let message = ''
+  for (let i = 0; i < arguments.length; i++) {
+    message += _toString(arguments[i])
   }
   _log(message)
 }
 
 export function logAppend() {
-
-  var message = ""
-  for (var i = 0; i < arguments.length; i++) {
-    message += _toString(arguments[i]);
+  let message = ''
+  for (let i = 0; i < arguments.length; i++) {
+    message += _toString(arguments[i])
   }
   _log(message, true)
 }
 
-
 function _log(message, append = false) {
   // do not repeat the previous message, just output a dot
   if (message === prevMessage) {
-    process.stdout.write(".")
+    process.stdout.write('.')
     dotCount += 1
-  }
-  else {
+  } else {
     prevMessage = message
     if (dotCount > 0) {
       dotCount = 0
     }
     if (!append) {
-      message = "\n" + message
+      message = '\n' + message
     }
     process.stdout.write(message)
   }
-
 }
 
-
 function _toString(item) {
-
-  if (typeof item === 'object')
+  if (typeof item === 'object') {
     return JSON.stringify(item)
-  else
-    return item
+  }
+  return item
 }
