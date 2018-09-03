@@ -62,12 +62,16 @@ async function apiFetchRawRetry(urlData, opts, n = MAX_RETRY) {
       return resp
     })
     .catch(async err => {
-      log(`    Network error ${err.errno}:${err.url}, retrying`)
-      await sleep(1000)
-      if (n > 0) {
-        return await apiFetchRawRetry(urlData, opts, n - 1)
+      if (err.name === 'FetchError') {
+        log(`    Network error ${err.errno}:${err.url}, retrying`)
+        await sleep(1000)
+        if (n > 0) {
+          return await apiFetchRawRetry(urlData, opts, n - 1)
+        }
+        throw new APIError(err.errno, err.message, null, err.url)
+      } else {
+        throw err
       }
-      throw new APIError(err.errno, err.message, null, err.url)
     })
 }
 
