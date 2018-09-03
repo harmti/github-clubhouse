@@ -25,7 +25,13 @@ class APIError extends Error {
 }
 
 function apiBuildUrl(urlData) {
-  return buildUrl(urlData.base, urlData)
+  let url = buildUrl(urlData.base, urlData)
+
+  // if no params, buildUrl leaves extra '?' at the end of the url. remove it.
+  if (url.substr(url.length - 1) === '?') {
+    url = url.substring(0, url.length - 1)
+  }
+  return url
 }
 
 function apiFetchRaw(urlData, opts) {
