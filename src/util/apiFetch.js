@@ -10,17 +10,13 @@ const DEFAULT_HEADERS = {
 }
 
 class APIError extends Error {
-  constructor(status, statusText, text, url) {
+  constructor(status, statusText, url) {
     const message = `API Error ${status} (${statusText}) trying to invoke API (url = '${url}')`
     super(message)
     this.name = 'APIError'
     this.status = status
     this.statusText = statusText
     this.url = url
-
-    if (text !== null) {
-      text.then(text => log(text + '\n'))
-    }
   }
 }
 
@@ -56,7 +52,7 @@ async function apiFetchRawRetry(urlData, opts, n = MAX_RETRY) {
           // exceeding rate limit does not count as a retry...
           return await apiFetchRawRetry(urlData, opts, n)
         } else if (!resp.ok) {
-          throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
+          throw new APIError(resp.status, resp.statusText, resp.url)
         }
       }
       return resp
@@ -68,7 +64,7 @@ async function apiFetchRawRetry(urlData, opts, n = MAX_RETRY) {
         if (n > 0) {
           return await apiFetchRawRetry(urlData, opts, n - 1)
         }
-        throw new APIError(err.errno, err.message, null, err.url)
+        throw new APIError(err.errno, err.message, err.url)
       } else {
         throw err
       }
@@ -79,7 +75,7 @@ export function apiFetch(urlData, opts = {}) {
   return apiFetchRawRetry(urlData, opts)
     .then(resp => {
       if (!resp.ok) {
-        throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
+        throw new APIError(resp.status, resp.statusText, resp.url)
       }
       return resp.json()
     })
@@ -89,7 +85,7 @@ export function apiFetchAllPages(urlData, opts = {}, prevResults = []) {
   return apiFetchRawRetry(urlData, opts)
     .then(resp => {
       if (!resp.ok) {
-        throw new APIError(resp.status, resp.statusText, resp.text(), resp.url)
+        throw new APIError(resp.status, resp.statusText, resp.url)
       }
       const link = parseLinkHeader(resp.headers.get('Link'))
       let next = null
